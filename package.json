@@ -1,0 +1,56 @@
+{
+  "name": "ccusage-widget",
+  "displayName": "ccusage Widget",
+  "description": "Status-bar widget showing today's Claude Code spend via ccusage.",
+  "version": "0.1.0",
+  "publisher": "aurelio-amerio",
+  "repository": { "type": "git", "url": "https://github.com/aurelio-amerio/ccusage-widget" },
+  "license": "MIT",
+  "engines": { "vscode": "^1.80.0", "node": ">=18" },
+  "main": "./dist/extension.js",
+  "activationEvents": ["onStartupFinished"],
+  "categories": ["Other"],
+  "contributes": {
+    "commands": [
+      { "command": "ccusageWidget.refresh", "title": "ccusage Widget: Refresh now" },
+      { "command": "ccusageWidget.showOutput", "title": "ccusage Widget: Show output log" }
+    ],
+    "configuration": {
+      "title": "ccusage Widget",
+      "properties": {
+        "ccusageWidget.refreshIntervalMinutes": {
+          "type": "number", "default": 5, "minimum": 1,
+          "description": "How often to poll ccusage for fresh data."
+        },
+        "ccusageWidget.ccusageCommand": {
+          "type": "string", "default": "npx ccusage@latest",
+          "description": "Command used to invoke ccusage. Override to 'ccusage' if installed globally."
+        },
+        "ccusageWidget.timezone": {
+          "type": ["string", "null"], "default": null,
+          "description": "Optional IANA timezone forwarded to ccusage --timezone."
+        },
+        "ccusageWidget.showSessionBlock": {
+          "type": "boolean", "default": true,
+          "description": "Show the active 5h session block section in the tooltip."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "node esbuild.mjs",
+    "watch": "node esbuild.mjs --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "vscode:prepublish": "node esbuild.mjs --production",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.80.0",
+    "@vscode/vsce": "^3.0.0",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.5.0",
+    "vitest": "^2.1.0"
+  }
+}
