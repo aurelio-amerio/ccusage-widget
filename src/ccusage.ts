@@ -58,3 +58,62 @@ export function pickActiveBlock(
 ): ActiveBlock | null {
   return report.blocks.find((b) => b.isActive && !b.isGap) ?? null;
 }
+
+import { spawn } from "node:child_process";
+
+export type RunResult =
+  | { ok: true; stdout: string }
+  | { ok: false; exitCode: number | null; stderr: string; error?: string };
+
+export interface RunOptions {
+  command: string;
+  args: string[];
+  maxBufferBytes?: number;
+}
+
+export function runCcusage(opts: RunOptions): Promise<RunResult> {
+  return new Promise((resolve) => {
+    const max = opts.maxBufferBytes ?? 8 * 1024 * 1024;
+    let stdout = "";
+    let stderr = "";
+    let truncated = false;
+
+    let child;
+    try {
+      child = spawn(opts.command, opts.args, { stdio: ["ignore", "pipe", "pipe"] });
+    } catch (e) {
+      resolve({ ok: false, exitCode: null, stderr: "", error: (e as Error).message });
+      return;
+    }
+
+    child.stdout.on("data", (buf: Buffer) => {
+      if (stdout.length + buf.length > max) {
+        truncated = true;
+        return;
+      }
+      stdout += buf.toString("utf8");
+    });
+    child.stderr.on("data", (buf: Buffer) => {
+      if (stderr.length < max) stderr += buf.toString("utf8");
+    });
+    child.on("error", (err) => {
+      resolve({ ok: false, exitCode: null, stderr, error: err.message });
+    });
+    child.on("close", (code) => {
+      if (truncated) {
+        resolve({ ok: false, exitCode: code, stderr, error: "stdout exceeded buffer limit" });
+        return;
+      }
+      if (code === 0) resolve({ ok: true, stdout });
+      else resolve({ ok: false, exitCode: code, stderr });
+    });
+  });
+}
+
+export function splitCommand(commandString: string): { command: string; baseArgs: string[] } {
+  const parts = commandString.trim().split(/\s+/);
+  if (parts.length === 0 || !parts[0]) {
+    throw new Error("ccusageCommand is empty");
+  }
+  return { command: parts[0], baseArgs: parts.slice(1) };
+}

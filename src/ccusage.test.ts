@@ -9,6 +9,7 @@ import {
   pickThisMonthEntry,
   pickActiveBlock,
 } from "./ccusage";
+import { runCcusage } from "./ccusage";
 
 const fixture = (name: string) =>
   readFileSync(join(__dirname, "__fixtures__", name), "utf8");
@@ -79,5 +80,37 @@ describe("pickActiveBlock", () => {
   it("returns null when no blocks", () => {
     const report = parseBlocksActive(fixture("blocks-empty.json"));
     expect(pickActiveBlock(report)).toBeNull();
+  });
+});
+
+describe("runCcusage", () => {
+  it("returns parsed stdout when the process exits 0", async () => {
+    const result = await runCcusage({
+      command: "node",
+      args: ["-e", "process.stdout.write('{\"daily\":[],\"totals\":{}}')"],
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.stdout).toContain('"daily"');
+  });
+
+  it("returns an error result when the process exits non-zero", async () => {
+    const result = await runCcusage({
+      command: "node",
+      args: ["-e", "process.stderr.write('boom'); process.exit(2)"],
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.exitCode).toBe(2);
+      expect(result.stderr).toContain("boom");
+    }
+  });
+
+  it("returns an error result when the binary is missing", async () => {
+    const result = await runCcusage({
+      command: "definitely-not-a-real-binary-xyzzy",
+      args: [],
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toMatch(/ENOENT|not found|spawn/i);
   });
 });
