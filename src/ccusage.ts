@@ -1,3 +1,4 @@
+import { spawn } from "node:child_process";
 import type {
   DailyReport,
   MonthlyReport,
@@ -59,8 +60,6 @@ export function pickActiveBlock(
   return report.blocks.find((b) => b.isActive && !b.isGap) ?? null;
 }
 
-import { spawn } from "node:child_process";
-
 export type RunResult =
   | { ok: true; stdout: string }
   | { ok: false; exitCode: number | null; stderr: string; error?: string };
@@ -77,6 +76,7 @@ export function runCcusage(opts: RunOptions): Promise<RunResult> {
     let stdout = "";
     let stderr = "";
     let truncated = false;
+    let settled = false;
 
     let child;
     try {
@@ -94,12 +94,15 @@ export function runCcusage(opts: RunOptions): Promise<RunResult> {
       stdout += buf.toString("utf8");
     });
     child.stderr.on("data", (buf: Buffer) => {
-      if (stderr.length < max) stderr += buf.toString("utf8");
+      if (stderr.length + buf.length > max) return;
+      stderr += buf.toString("utf8");
     });
     child.on("error", (err) => {
+      if (settled) return; settled = true;
       resolve({ ok: false, exitCode: null, stderr, error: err.message });
     });
     child.on("close", (code) => {
+      if (settled) return; settled = true;
       if (truncated) {
         resolve({ ok: false, exitCode: code, stderr, error: "stdout exceeded buffer limit" });
         return;
