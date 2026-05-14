@@ -950,17 +950,17 @@ describe("formatTokens", () => {
 
 describe("renderStatusBarText", () => {
   it("shows today's cost and a search icon when data is present", () => {
-    expect(renderStatusBarText(withData())).toBe("$15.77 $(search)");
+    expect(renderStatusBarText(withData())).toBe("$15.77 $(clippy)");
   });
 
   it("shows Loading when there is no data and no error", () => {
-    expect(renderStatusBarText(emptyCache())).toBe("Loading… $(search)");
+    expect(renderStatusBarText(emptyCache())).toBe("Loading… $(clippy)");
   });
 
   it("shows a question mark when there is an error and no prior data", () => {
     const c = emptyCache();
     c.today = { data: null, error: "boom", fetchedAt: new Date() };
-    expect(renderStatusBarText(c)).toBe("$? $(search)");
+    expect(renderStatusBarText(c)).toBe("$? $(clippy)");
   });
 });
 
@@ -1032,9 +1032,9 @@ export function formatTokens(n: number): string {
 }
 
 export function renderStatusBarText(cache: CacheState): string {
-  if (cache.today.data) return `${formatCost(cache.today.data.totalCost)} $(search)`;
-  if (cache.today.error && !cache.today.data) return `$? $(search)`;
-  return `Loading… $(search)`;
+  if (cache.today.data) return `${formatCost(cache.today.data.totalCost)} $(clippy)`;
+  if (cache.today.error && !cache.today.data) return `$? $(clippy)`;
+  return `Loading… $(clippy)`;
 }
 
 function shortModelName(name: string): string {
@@ -1537,7 +1537,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
   statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
   statusBar.command = "ccusageWidget.refresh";
-  statusBar.text = "Loading… $(search)";
+  statusBar.text = "Loading… $(clippy)";
   statusBar.tooltip = "Fetching ccusage data…";
   statusBar.show();
 
@@ -1660,7 +1660,7 @@ Run "ccusage Widget: Show output log". The output channel should open with one o
 
 - [ ] **Step 4: Test error path**
 
-In the extension dev host, set `ccusageWidget.ccusageCommand` to `bogus-command-xyz` in settings. After the next refresh (or via the Refresh command), the status bar should show `$? $(search)` and the tooltip should mention "unavailable" with the error.
+In the extension dev host, set `ccusageWidget.ccusageCommand` to `bogus-command-xyz` in settings. After the next refresh (or via the Refresh command), the status bar should show `$? $(clippy)` and the tooltip should mention "unavailable" with the error.
 
 Reset to default after testing.
 

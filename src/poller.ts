@@ -1,22 +1,11 @@
-import type { RunResult } from "./ccusage";
-import {
-  parseDaily,
-  parseMonthly,
-  parseBlocksActive,
-  pickTodayEntry,
-  pickThisMonthEntry,
-  pickActiveBlock,
-} from "./ccusage";
-import { emptyCache, todayYMD, thisMonthYM } from "./cache";
-import type { CacheState, SectionState } from "./cache";
-import type { DailyEntry, MonthlyEntry, ActiveBlock } from "./types";
-
-export type Subcommand = "daily" | "monthly" | "blocks";
-export type Runner = (subcommand: Subcommand) => Promise<RunResult>;
+import { fetchToday, fetchMonth, fetchActiveBlock } from "./ccusage";
+import type { LoadOpts } from "./ccusage";
+import { emptyCache } from "./cache";
+import type { CacheState } from "./cache";
 
 export interface PollerOptions {
   intervalMs: number;
-  runner: Runner;
+  loadOpts: LoadOpts;
 }
 
 type Listener = (cache: CacheState) => void;
@@ -25,9 +14,12 @@ export class Poller {
   private cache: CacheState = emptyCache();
   private listeners: Listener[] = [];
   private inflight: Promise<void> | null = null;
-  private timer: NodeJS.Timeout | null = null;
+  private timer: ReturnType<typeof setInterval> | null = null;
+  private opts: PollerOptions;
 
-  constructor(private opts: PollerOptions) {}
+  constructor(opts: PollerOptions) {
+    this.opts = opts;
+  }
 
   getCache(): CacheState { return this.cache; }
 
@@ -51,6 +43,10 @@ export class Poller {
     if (this.timer) this.start();
   }
 
+  setLoadOpts(opts: LoadOpts): void {
+    this.opts.loadOpts = opts;
+  }
+
   refresh(): Promise<void> {
     if (this.inflight) return this.inflight;
     this.inflight = this.doRefresh().finally(() => { this.inflight = null; });
@@ -58,64 +54,31 @@ export class Poller {
   }
 
   private async doRefresh(): Promise<void> {
-    const [daily, monthly, blocks] = await Promise.allSettled([
-      this.opts.runner("daily"),
-      this.opts.runner("monthly"),
-      this.opts.runner("blocks"),
-    ]);
+    const opts = this.opts.loadOpts;
     const now = new Date();
 
-    this.cache.today = mergeDaily(this.cache.today, daily, now);
-    this.cache.thisMonth = mergeMonthly(this.cache.thisMonth, monthly, now);
-    this.cache.activeBlock = mergeBlock(this.cache.activeBlock, blocks, now);
+    const [daily, monthly, blocks] = await Promise.allSettled([
+      fetchToday(opts),
+      fetchMonth(opts),
+      fetchActiveBlock(opts),
+    ]);
+
+    this.cache.today = merge(this.cache.today, daily, now);
+    this.cache.thisMonth = merge(this.cache.thisMonth, monthly, now);
+    this.cache.activeBlock = merge(this.cache.activeBlock, blocks, now);
     this.cache.lastUpdated = now;
 
     for (const l of this.listeners) l(this.cache);
   }
 }
 
-function settledToResult<T>(
-  s: PromiseSettledResult<RunResult>,
-  parse: (raw: string) => T,
-): { ok: true; data: T } | { ok: false; error: string } {
-  if (s.status === "rejected") return { ok: false, error: String(s.reason) };
-  const r = s.value;
-  if (!r.ok) {
-    const msg = r.error ?? r.stderr ?? `exit ${r.exitCode}`;
-    return { ok: false, error: msg.trim() || `exit ${r.exitCode}` };
+function merge<T>(
+  prev: CacheState["today"],
+  settled: PromiseSettledResult<T | null>,
+  now: Date,
+): { data: T | null; error: string | null; fetchedAt: Date } {
+  if (settled.status === "rejected") {
+    return { data: prev.data as T | null, error: String(settled.reason), fetchedAt: now };
   }
-  try { return { ok: true, data: parse(r.stdout) }; }
-  catch (e) { return { ok: false, error: (e as Error).message }; }
-}
-
-function mergeDaily(
-  prev: SectionState<DailyEntry>,
-  settled: PromiseSettledResult<RunResult>,
-  now: Date,
-): SectionState<DailyEntry> {
-  const r = settledToResult(settled, parseDaily);
-  if (!r.ok) return { data: prev.data, error: r.error, fetchedAt: now };
-  const entry = pickTodayEntry(r.data, todayYMD(now));
-  return { data: entry, error: null, fetchedAt: now };
-}
-
-function mergeMonthly(
-  prev: SectionState<MonthlyEntry>,
-  settled: PromiseSettledResult<RunResult>,
-  now: Date,
-): SectionState<MonthlyEntry> {
-  const r = settledToResult(settled, parseMonthly);
-  if (!r.ok) return { data: prev.data, error: r.error, fetchedAt: now };
-  const entry = pickThisMonthEntry(r.data, thisMonthYM(now));
-  return { data: entry, error: null, fetchedAt: now };
-}
-
-function mergeBlock(
-  prev: SectionState<ActiveBlock | null>,
-  settled: PromiseSettledResult<RunResult>,
-  now: Date,
-): SectionState<ActiveBlock | null> {
-  const r = settledToResult(settled, parseBlocksActive);
-  if (!r.ok) return { data: prev.data, error: r.error, fetchedAt: now };
-  return { data: pickActiveBlock(r.data), error: null, fetchedAt: now };
+  return { data: settled.value as T | null, error: null, fetchedAt: now };
 }

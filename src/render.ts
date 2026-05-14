@@ -18,9 +18,9 @@ export function formatTokens(n: number): string {
 }
 
 export function renderStatusBarText(cache: CacheState): string {
-  if (cache.today.data) return `${formatCost(cache.today.data.totalCost)} $(search)`;
-  if (cache.today.error && !cache.today.data) return `$? $(search)`;
-  return `Loading… $(search)`;
+  if (cache.today.data) return `$(clippy) ${formatCost(cache.today.data.totalCost)}`;
+  if (cache.today.error && !cache.today.data) return `$(clippy) $?`;
+  return `$(clippy) Loading…`;
 }
 
 function shortModelName(name: string): string {
@@ -59,13 +59,13 @@ function renderBlockSection(s: CacheState["activeBlock"]): string | null {
   if (s.error && !s.data) return `**Active session block (5h)** — _unavailable: ${s.error}_`;
   if (!s.data) return null;
   const b = s.data;
-  const remaining = b.projection?.remainingMinutes;
-  const remainStr =
-    typeof remaining === "number"
-      ? `${Math.floor(remaining / 60)}h ${remaining % 60}m remaining`
-      : "";
   const head = `**Active session block (5h)** — ${formatCost(b.costUSD)}`;
-  return remainStr ? `${head}\n\n${remainStr}` : head;
+  if (b.remainingMinutes != null) {
+    const h = Math.floor(b.remainingMinutes / 60);
+    const m = b.remainingMinutes % 60;
+    return `${head}\n\n${h}h ${m}m remaining`;
+  }
+  return head;
 }
 
 export function renderTooltip(cache: CacheState, opts: RenderOptions = {}): vscode.MarkdownString {

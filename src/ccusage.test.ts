@@ -1,116 +1,127 @@
-import { describe, it, expect } from "vitest";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-import {
-  parseDaily,
-  parseMonthly,
-  parseBlocksActive,
-  pickTodayEntry,
-  pickThisMonthEntry,
-  pickActiveBlock,
-} from "./ccusage";
-import { runCcusage } from "./ccusage";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const fixture = (name: string) =>
-  readFileSync(join(__dirname, "__fixtures__", name), "utf8");
+vi.mock("ccusage/data-loader", () => ({
+  loadDailyUsageData: vi.fn(),
+  loadMonthlyUsageData: vi.fn(),
+  loadSessionBlockData: vi.fn(),
+}));
 
-describe("parseDaily", () => {
-  it("parses real ccusage output", () => {
-    const report = parseDaily(fixture("daily.json"));
-    expect(report.daily.length).toBeGreaterThan(0);
-    expect(report.totals.totalCost).toBeGreaterThan(0);
+vi.mock("ccusage/calculate-cost", () => ({
+  getTotalTokens: vi.fn((entry: Record<string, number>) =>
+    (entry.inputTokens ?? 0) + (entry.outputTokens ?? 0) +
+    (entry.cacheCreationTokens ?? 0) + (entry.cacheReadTokens ?? 0)),
+}));
+
+import { loadDailyUsageData, loadMonthlyUsageData, loadSessionBlockData } from "ccusage/data-loader";
+import { fetchToday, fetchMonth, fetchActiveBlock } from "./ccusage";
+
+beforeEach(() => { vi.clearAllMocks(); });
+
+describe("fetchToday", () => {
+  it("returns today's data when present", async () => {
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+
+    vi.mocked(loadDailyUsageData).mockResolvedValue([{
+      date: todayStr,
+      inputTokens: 100,
+      outputTokens: 200,
+      cacheCreationTokens: 50,
+      cacheReadTokens: 50,
+      totalCost: 1.5,
+      modelsUsed: ["claude-sonnet-4-6"],
+      modelBreakdowns: [{ modelName: "claude-sonnet-4-6", inputTokens: 100, outputTokens: 200, cacheCreationTokens: 50, cacheReadTokens: 50, cost: 1.5 }],
+    } as any]);
+
+    const result = await fetchToday({});
+    expect(result).not.toBeNull();
+    expect(result!.totalCost).toBe(1.5);
+    expect(result!.totalTokens).toBe(400);
+    expect(result!.modelBreakdowns).toHaveLength(1);
   });
 
-  it("throws on malformed JSON", () => {
-    expect(() => parseDaily("{not json")).toThrow(/parse/i);
-  });
-
-  it("throws when shape is wrong", () => {
-    expect(() => parseDaily('{"wrong": []}')).toThrow(/daily/i);
-  });
-});
-
-describe("parseMonthly", () => {
-  it("parses real ccusage output", () => {
-    const report = parseMonthly(fixture("monthly.json"));
-    expect(report.monthly.length).toBeGreaterThan(0);
-  });
-});
-
-describe("parseBlocksActive", () => {
-  it("parses a populated blocks response", () => {
-    const report = parseBlocksActive(fixture("blocks-active.json"));
-    expect(report.blocks).toHaveLength(1);
-    expect(report.blocks[0].isActive).toBe(true);
-  });
-
-  it("parses an empty blocks response", () => {
-    const report = parseBlocksActive(fixture("blocks-empty.json"));
-    expect(report.blocks).toHaveLength(0);
-  });
-});
-
-describe("pickTodayEntry", () => {
-  it("returns the entry matching today's YYYY-MM-DD", () => {
-    const report = parseDaily(fixture("daily.json"));
-    const today = report.daily[0].date;
-    expect(pickTodayEntry(report, today)?.date).toBe(today);
-  });
-
-  it("returns null when today has no entry", () => {
-    const report = parseDaily(fixture("daily.json"));
-    expect(pickTodayEntry(report, "1999-01-01")).toBeNull();
+  it("returns zero data when no entry for today", async () => {
+    vi.mocked(loadDailyUsageData).mockResolvedValue([]);
+    const result = await fetchToday({});
+    expect(result.totalCost).toBe(0);
+    expect(result.totalTokens).toBe(0);
+    expect(result.modelBreakdowns).toHaveLength(0);
   });
 });
 
-describe("pickThisMonthEntry", () => {
-  it("returns the entry matching this YYYY-MM", () => {
-    const report = parseMonthly(fixture("monthly.json"));
-    const month = report.monthly[0].month;
-    expect(pickThisMonthEntry(report, month)?.month).toBe(month);
+describe("fetchMonth", () => {
+  it("returns this month's data when present", async () => {
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const monthStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}`;
+
+    vi.mocked(loadMonthlyUsageData).mockResolvedValue([{
+      month: monthStr,
+      inputTokens: 1000,
+      outputTokens: 2000,
+      cacheCreationTokens: 500,
+      cacheReadTokens: 500,
+      totalCost: 10.0,
+      modelsUsed: [],
+      modelBreakdowns: [],
+    } as any]);
+
+    const result = await fetchMonth({});
+    expect(result).not.toBeNull();
+    expect(result!.totalCost).toBe(10.0);
+    expect(result!.totalTokens).toBe(4000);
+  });
+
+  it("returns zero data when no entry for this month", async () => {
+    vi.mocked(loadMonthlyUsageData).mockResolvedValue([]);
+    const result = await fetchMonth({});
+    expect(result.totalCost).toBe(0);
+    expect(result.totalTokens).toBe(0);
   });
 });
 
-describe("pickActiveBlock", () => {
-  it("returns the active block when present", () => {
-    const report = parseBlocksActive(fixture("blocks-active.json"));
-    expect(pickActiveBlock(report)?.isActive).toBe(true);
+describe("fetchActiveBlock", () => {
+  it("returns active block data with remaining time", async () => {
+    const now = Date.now();
+    vi.mocked(loadSessionBlockData).mockResolvedValue([{
+      id: "block-1",
+      startTime: new Date(now - 3600_000),
+      endTime: new Date(now + 3600_000),
+      isActive: true,
+      isGap: false,
+      entries: [],
+      tokenCounts: { inputTokens: 0, outputTokens: 0, cacheCreationInputTokens: 0, cacheReadInputTokens: 0 },
+      costUSD: 5.0,
+      models: [],
+    }]);
+
+    const result = await fetchActiveBlock({});
+    expect(result).not.toBeNull();
+    expect(result!.costUSD).toBe(5.0);
+    expect(result!.remainingMinutes).toBeGreaterThan(0);
   });
 
-  it("returns null when no blocks", () => {
-    const report = parseBlocksActive(fixture("blocks-empty.json"));
-    expect(pickActiveBlock(report)).toBeNull();
-  });
-});
-
-describe("runCcusage", () => {
-  it("returns parsed stdout when the process exits 0", async () => {
-    const result = await runCcusage({
-      command: "node",
-      args: ["-e", "process.stdout.write('{\"daily\":[],\"totals\":{}}')"],
-    });
-    expect(result.ok).toBe(true);
-    if (result.ok) expect(result.stdout).toContain('"daily"');
+  it("returns null when no active block", async () => {
+    vi.mocked(loadSessionBlockData).mockResolvedValue([]);
+    const result = await fetchActiveBlock({});
+    expect(result).toBeNull();
   });
 
-  it("returns an error result when the process exits non-zero", async () => {
-    const result = await runCcusage({
-      command: "node",
-      args: ["-e", "process.stderr.write('boom'); process.exit(2)"],
-    });
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.exitCode).toBe(2);
-      expect(result.stderr).toContain("boom");
-    }
-  });
+  it("skips gap blocks", async () => {
+    vi.mocked(loadSessionBlockData).mockResolvedValue([{
+      id: "gap-1",
+      startTime: new Date(),
+      endTime: new Date(Date.now() + 3600_000),
+      isActive: true,
+      isGap: true,
+      entries: [],
+      tokenCounts: { inputTokens: 0, outputTokens: 0, cacheCreationInputTokens: 0, cacheReadInputTokens: 0 },
+      costUSD: 0,
+      models: [],
+    }]);
 
-  it("returns an error result when the binary is missing", async () => {
-    const result = await runCcusage({
-      command: "definitely-not-a-real-binary-xyzzy",
-      args: [],
-    });
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error).toMatch(/ENOENT|not found|spawn/i);
+    const result = await fetchActiveBlock({});
+    expect(result).toBeNull();
   });
 });

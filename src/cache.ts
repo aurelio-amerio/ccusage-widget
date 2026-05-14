@@ -1,4 +1,4 @@
-import type { DailyEntry, MonthlyEntry, ActiveBlock } from "./types";
+import type { DailyData, MonthlyData, BlockData } from "./types";
 
 export interface SectionState<T> {
   data: T | null;
@@ -7,9 +7,9 @@ export interface SectionState<T> {
 }
 
 export interface CacheState {
-  today: SectionState<DailyEntry>;
-  thisMonth: SectionState<MonthlyEntry>;
-  activeBlock: SectionState<ActiveBlock | null>;
+  today: SectionState<DailyData>;
+  thisMonth: SectionState<MonthlyData>;
+  activeBlock: SectionState<BlockData>;
   lastUpdated: Date | null;
 }
 

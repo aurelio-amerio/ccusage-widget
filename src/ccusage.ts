@@ -1,122 +1,55 @@
-import { spawn } from "node:child_process";
-import type {
-  DailyReport,
-  MonthlyReport,
-  BlocksActiveReport,
-  DailyEntry,
-  MonthlyEntry,
-  ActiveBlock,
-} from "./types";
+import {
+  loadDailyUsageData,
+  loadMonthlyUsageData,
+  loadSessionBlockData,
+} from "ccusage/data-loader";
+import { getTotalTokens } from "ccusage/calculate-cost";
+import type { DailyData, MonthlyData, BlockData } from "./types";
+import { todayYMD, thisMonthYM } from "./cache";
 
-function parseJson(raw: string, kind: string): unknown {
-  try {
-    return JSON.parse(raw);
-  } catch (e) {
-    throw new Error(`Failed to parse ccusage ${kind} JSON: ${(e as Error).message}`);
-  }
+export interface LoadOpts {
+  timezone?: string;
 }
 
-export function parseDaily(raw: string): DailyReport {
-  const data = parseJson(raw, "daily") as DailyReport;
-  if (!data || !Array.isArray(data.daily)) {
-    throw new Error("ccusage daily response missing 'daily' array");
-  }
-  return data;
-}
-
-export function parseMonthly(raw: string): MonthlyReport {
-  const data = parseJson(raw, "monthly") as MonthlyReport;
-  if (!data || !Array.isArray(data.monthly)) {
-    throw new Error("ccusage monthly response missing 'monthly' array");
-  }
-  return data;
-}
-
-export function parseBlocksActive(raw: string): BlocksActiveReport {
-  const data = parseJson(raw, "blocks") as BlocksActiveReport;
-  if (!data || !Array.isArray(data.blocks)) {
-    throw new Error("ccusage blocks response missing 'blocks' array");
-  }
-  return data;
-}
-
-export function pickTodayEntry(
-  report: DailyReport,
-  todayYMD: string,
-): DailyEntry | null {
-  return report.daily.find((e) => e.date === todayYMD) ?? null;
-}
-
-export function pickThisMonthEntry(
-  report: MonthlyReport,
-  thisYM: string,
-): MonthlyEntry | null {
-  return report.monthly.find((e) => e.month === thisYM) ?? null;
-}
-
-export function pickActiveBlock(
-  report: BlocksActiveReport,
-): ActiveBlock | null {
-  return report.blocks.find((b) => b.isActive && !b.isGap) ?? null;
-}
-
-export type RunResult =
-  | { ok: true; stdout: string }
-  | { ok: false; exitCode: number | null; stderr: string; error?: string };
-
-export interface RunOptions {
-  command: string;
-  args: string[];
-  maxBufferBytes?: number;
-}
-
-export function runCcusage(opts: RunOptions): Promise<RunResult> {
-  return new Promise((resolve) => {
-    const max = opts.maxBufferBytes ?? 8 * 1024 * 1024;
-    let stdout = "";
-    let stderr = "";
-    let truncated = false;
-    let settled = false;
-
-    let child;
-    try {
-      child = spawn(opts.command, opts.args, { stdio: ["ignore", "pipe", "pipe"] });
-    } catch (e) {
-      resolve({ ok: false, exitCode: null, stderr: "", error: (e as Error).message });
-      return;
-    }
-
-    child.stdout.on("data", (buf: Buffer) => {
-      if (stdout.length + buf.length > max) {
-        truncated = true;
-        return;
-      }
-      stdout += buf.toString("utf8");
-    });
-    child.stderr.on("data", (buf: Buffer) => {
-      if (stderr.length + buf.length > max) return;
-      stderr += buf.toString("utf8");
-    });
-    child.on("error", (err) => {
-      if (settled) return; settled = true;
-      resolve({ ok: false, exitCode: null, stderr, error: err.message });
-    });
-    child.on("close", (code) => {
-      if (settled) return; settled = true;
-      if (truncated) {
-        resolve({ ok: false, exitCode: code, stderr, error: "stdout exceeded buffer limit" });
-        return;
-      }
-      if (code === 0) resolve({ ok: true, stdout });
-      else resolve({ ok: false, exitCode: code, stderr });
-    });
+export async function fetchToday(opts: LoadOpts): Promise<DailyData> {
+  const days = await loadDailyUsageData({
+    timezone: opts.timezone ?? undefined,
   });
+  const today = todayYMD();
+  const entry = days.find((d) => d.date === today);
+  if (!entry) return { totalCost: 0, totalTokens: 0, modelBreakdowns: [] };
+  return {
+    totalCost: entry.totalCost,
+    totalTokens: getTotalTokens(entry),
+    modelBreakdowns: entry.modelBreakdowns.map((b) => ({
+      modelName: b.modelName,
+      cost: b.cost,
+    })),
+  };
 }
 
-export function splitCommand(commandString: string): { command: string; baseArgs: string[] } {
-  const parts = commandString.trim().split(/\s+/);
-  if (parts.length === 0 || !parts[0]) {
-    throw new Error("ccusageCommand is empty");
-  }
-  return { command: parts[0], baseArgs: parts.slice(1) };
+export async function fetchMonth(opts: LoadOpts): Promise<MonthlyData> {
+  const months = await loadMonthlyUsageData({
+    timezone: opts.timezone ?? undefined,
+  });
+  const ym = thisMonthYM();
+  const entry = months.find((m) => m.month === ym);
+  if (!entry) return { totalCost: 0, totalTokens: 0 };
+  return {
+    totalCost: entry.totalCost,
+    totalTokens: getTotalTokens(entry),
+  };
+}
+
+export async function fetchActiveBlock(opts: LoadOpts): Promise<BlockData | null> {
+  const blocks = await loadSessionBlockData({
+    timezone: opts.timezone ?? undefined,
+  });
+  const active = blocks.find((b) => b.isActive && !b.isGap);
+  if (!active) return null;
+  const remaining = Math.max(0, (active.endTime.getTime() - Date.now()) / 60_000);
+  return {
+    costUSD: active.costUSD,
+    remainingMinutes: Math.round(remaining),
+  };
 }
