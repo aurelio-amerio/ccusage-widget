@@ -84,8 +84,8 @@ function settledToResult<T>(
     const msg = r.error ?? r.stderr ?? `exit ${r.exitCode}`;
     return { ok: false, error: msg.trim() || `exit ${r.exitCode}` };
   }
-  try { return { ok: true, data: parse(r.stdout!) }; }
-  catch (e) { return { ok: false, error: (e as Error).message }; }
+  try { return { ok: true, data: parse(r.stdout ?? "") }; }
+  catch (e) { return { ok: false, error: String(e) }; }
 }
 
 function mergeDaily(

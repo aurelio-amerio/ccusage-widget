@@ -62,7 +62,7 @@ function renderBlockSection(s: CacheState["activeBlock"]): string | null {
   const remaining = b.projection?.remainingMinutes;
   const remainStr =
     typeof remaining === "number"
-      ? `${Math.floor(remaining / 60)}h ${remaining % 60}m remaining`
+      ? `${Math.floor(remaining / 60)}h ${Math.floor(remaining % 60)}m remaining`
       : "";
   const head = `**Active session block (5h)** — ${formatCost(b.costUSD)}`;
   return remainStr ? `${head}\n\n${remainStr}` : head;
