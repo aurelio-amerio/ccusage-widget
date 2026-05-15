@@ -40,12 +40,14 @@ function showNotFoundPrompt(): void {
     });
 }
 
+const PER_CALL_TIMEOUT_MS = 60_000;
+
 function makeRunner(cfg: WidgetConfig) {
   const { command, baseArgs } = splitCommand(cfg.ccusageCommand);
   return async (sub: Subcommand) => {
     const args = [...baseArgs, ...buildArgs(sub, cfg)];
     logInfo(`spawn: ${command} ${args.join(" ")}`);
-    const result = await runCcusage({ command, args });
+    const result = await runCcusage({ command, args, timeoutMs: PER_CALL_TIMEOUT_MS });
     if (!result.ok) {
       const errMsg = result.error ?? result.stderr ?? `exit ${result.exitCode}`;
       logError(`ccusage ${sub} failed`, errMsg);
