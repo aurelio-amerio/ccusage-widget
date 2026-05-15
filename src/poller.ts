@@ -51,6 +51,10 @@ export class Poller {
     if (this.timer) this.start();
   }
 
+  setRunner(runner: Runner): void {
+    this.opts.runner = runner;
+  }
+
   refresh(): Promise<void> {
     if (this.inflight) return this.inflight;
     this.inflight = this.doRefresh().finally(() => { this.inflight = null; });

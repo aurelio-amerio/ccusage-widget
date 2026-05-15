@@ -93,4 +93,22 @@ describe("Poller", () => {
     expect(runner).toHaveBeenCalledTimes(9);
     p.stop();
   });
+
+  it("swaps the runner without firing an immediate refresh", async () => {
+    const first = makeRunner({ daily: dailyOk, monthly: monthlyOk, blocks: blocksEmpty });
+    const second = makeRunner({ daily: dailyOk, monthly: monthlyOk, blocks: blocksEmpty });
+
+    const p = new Poller({ intervalMs: 60_000, runner: first.runner });
+    await p.refresh();
+    expect(first.runner).toHaveBeenCalledTimes(3);
+
+    p.setRunner(second.runner);
+    // Swap alone must not spawn anything.
+    expect(second.runner).toHaveBeenCalledTimes(0);
+
+    await p.refresh();
+    expect(second.runner).toHaveBeenCalledTimes(3);
+    // Old runner is no longer used.
+    expect(first.runner).toHaveBeenCalledTimes(3);
+  });
 });
