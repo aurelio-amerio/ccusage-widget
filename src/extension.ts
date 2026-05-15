@@ -135,14 +135,10 @@ export function activate(context: vscode.ExtensionContext): void {
         newCfg.ccusageCommand !== cfg.ccusageCommand || newCfg.timezone !== cfg.timezone;
       cfg = newCfg;
       if (commandChanged && poller) {
-        poller.stop();
-        poller = new Poller({
-          intervalMs: cfg.refreshIntervalMinutes * 60_000,
-          runner: makeRunner(cfg),
-        });
-        poller.onUpdate(() => renderAll(cfg));
-        poller.start();
-      } else if (intervalChanged && poller) {
+        // Swap the runner in place — no extra spawn, no poller restart.
+        poller.setRunner(makeRunner(cfg));
+      }
+      if (intervalChanged && poller) {
         poller.setInterval(cfg.refreshIntervalMinutes * 60_000);
       }
       renderAll(cfg);
