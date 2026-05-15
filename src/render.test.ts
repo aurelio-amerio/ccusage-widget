@@ -70,17 +70,17 @@ describe("formatTokens", () => {
 
 describe("renderStatusBarText", () => {
   it("shows today's cost and a search icon when data is present", () => {
-    expect(renderStatusBarText(withData())).toBe("$15.77 $(search)");
+    expect(renderStatusBarText(withData())).toBe("$(chevron-right) $15.77");
   });
 
   it("shows Loading when there is no data and no error", () => {
-    expect(renderStatusBarText(emptyCache())).toBe("Loading… $(search)");
+    expect(renderStatusBarText(emptyCache())).toBe("Loading…");
   });
 
   it("shows a question mark when there is an error and no prior data", () => {
     const c = emptyCache();
     c.today = { data: null, error: "boom", fetchedAt: new Date() };
-    expect(renderStatusBarText(c)).toBe("$? $(search)");
+    expect(renderStatusBarText(c)).toBe("$(chevron-right) $?");
   });
 });
 

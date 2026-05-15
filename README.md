@@ -16,7 +16,7 @@ If ccusage is not found on your PATH when the extension activates, a prompt will
 
 ## Usage
 
-Once installed and ccusage is on your PATH, the widget activates automatically. The status bar item shows today's cost (`$4.27 $(search)`). Click it to force a refresh. Hover for a full breakdown.
+Once installed and ccusage is on your PATH, the widget activates automatically. The status bar item shows today's cost (`> $4.27`). Click it to force a refresh. Hover for a full breakdown.
 
 ### Settings
 

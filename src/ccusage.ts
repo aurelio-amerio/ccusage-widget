@@ -81,6 +81,8 @@ export function runCcusage(opts: RunOptions): Promise<RunResult> {
     let truncated = false;
     let timedOut = false;
     let settled = false;
+    let killTimer: NodeJS.Timeout | null = null;
+    let forceTimer: NodeJS.Timeout | null = null;
 
     const settle = (r: RunResult) => {
       if (settled) return;
@@ -97,9 +99,6 @@ export function runCcusage(opts: RunOptions): Promise<RunResult> {
       settle({ ok: false, exitCode: null, stderr: "", error: (e as Error).message });
       return;
     }
-
-    let killTimer: NodeJS.Timeout | null = null;
-    let forceTimer: NodeJS.Timeout | null = null;
     if (timeoutMs > 0) {
       killTimer = setTimeout(() => {
         timedOut = true;

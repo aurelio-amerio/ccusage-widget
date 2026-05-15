@@ -97,7 +97,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
   statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
   statusBar.command = "ccusageWidget.refresh";
-  statusBar.text = "Loading… $(search)";
+  statusBar.text = "Loading…";
   statusBar.tooltip = "Fetching ccusage data…";
   statusBar.show();
 

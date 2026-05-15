@@ -18,9 +18,9 @@ export function formatTokens(n: number): string {
 }
 
 export function renderStatusBarText(cache: CacheState): string {
-  if (cache.today.data) return `${formatCost(cache.today.data.totalCost)} $(search)`;
-  if (cache.today.error && !cache.today.data) return `$? $(search)`;
-  return `Loading… $(search)`;
+  if (cache.today.data) return `$(chevron-right) ${formatCost(cache.today.data.totalCost)}`;
+  if (cache.today.error && !cache.today.data) return `$(chevron-right) $?`;
+  return `Loading…`;
 }
 
 function shortModelName(name: string): string {

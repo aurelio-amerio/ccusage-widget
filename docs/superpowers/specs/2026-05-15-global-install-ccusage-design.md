@@ -49,7 +49,7 @@ When any spawn returns an error matching `ENOENT` (binary not on PATH):
 - The prompt is suppressed for the remainder of the session after the first showing (`notFoundPromptShown` flag), so the poller doesn't spam the user on every tick.
 - After a successful install (install command exits 0), the flag resets so the prompt can re-appear if the user uninstalls ccusage in a later session.
 
-The status bar continues to show `$? $(search)` while ccusage is uninstalled.
+The status bar continues to show `$? $(chevron-right)` while ccusage is uninstalled.
 
 ## Affected files
 

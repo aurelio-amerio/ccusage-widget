@@ -27,12 +27,12 @@ A small VS Code extension that displays Claude Code usage cost in the status bar
 ### Status bar item
 
 - Position: right side, high priority so it sits toward the end of the right cluster.
-- Default text: `$4.27 $(search)` — today's cost plus VS Code's built-in `search` codicon as the magnifying-glass affordance.
+- Default text: `$4.27 $(chevron-right)` — today's cost plus VS Code's built-in `search` codicon as the magnifying-glass affordance.
 - Click: runs `ccusageWidget.refresh` (manual refresh; tooltip already auto-shows on hover, per VS Code conventions).
 - States:
-  - Loading (first poll not yet returned): `Loading… $(search)`
+  - Loading (first poll not yet returned): `Loading… $(chevron-right)`
   - Stale (last poll failed but cache exists): keep last-known cost; tooltip explains staleness.
-  - Hard failure (no cache yet): `$? $(search)` with retry link in tooltip.
+  - Hard failure (no cache yet): `$? $(chevron-right)` with retry link in tooltip.
 
 ### Tooltip (MarkdownString, `isTrusted = true`)
 
@@ -114,10 +114,10 @@ Settings changes are picked up live; `refreshIntervalMinutes` changes restart th
 
 | Condition | Status bar | Tooltip |
 |---|---|---|
-| First poll in progress, no cache | `Loading… $(search)` | "Fetching ccusage data…" |
-| All three calls failed, no prior cache | `$? $(search)` | Error message + `[Retry]` link + hint to set `ccusageCommand` |
+| First poll in progress, no cache | `Loading… $(chevron-right)` | "Fetching ccusage data…" |
+| All three calls failed, no prior cache | `$? $(chevron-right)` | Error message + `[Retry]` link + hint to set `ccusageCommand` |
 | Some calls failed, others succeeded | Last-known cost displayed | Successful sections rendered normally; failed sections show `—` with a small error icon and timestamp |
-| ccusage missing / spawn ENOENT | `$? $(search)` | Explicit "Could not run ccusage" message with config hint |
+| ccusage missing / spawn ENOENT | `$? $(chevron-right)` | Explicit "Could not run ccusage" message with config hint |
 
 Diagnostic detail (child-process stderr, parse errors, stack traces) goes to the extension's output channel, not the tooltip.
 
