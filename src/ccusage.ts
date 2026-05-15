@@ -69,43 +69,77 @@ export interface RunOptions {
   command: string;
   args: string[];
   maxBufferBytes?: number;
+  timeoutMs?: number;
 }
 
 export function runCcusage(opts: RunOptions): Promise<RunResult> {
   return new Promise((resolve) => {
     const max = opts.maxBufferBytes ?? 8 * 1024 * 1024;
+    const timeoutMs = opts.timeoutMs ?? 0;
     let stdout = "";
     let stderr = "";
     let truncated = false;
+    let timedOut = false;
+    let settled = false;
+
+    const settle = (r: RunResult) => {
+      if (settled) return;
+      settled = true;
+      if (killTimer) clearTimeout(killTimer);
+      if (forceTimer) clearTimeout(forceTimer);
+      resolve(r);
+    };
 
     let child;
     try {
       child = spawn(opts.command, opts.args, { stdio: ["ignore", "pipe", "pipe"] });
     } catch (e) {
-      resolve({ ok: false, exitCode: null, stderr: "", error: (e as Error).message });
+      settle({ ok: false, exitCode: null, stderr: "", error: (e as Error).message });
       return;
     }
 
-    child.stdout.on("data", (buf: Buffer) => {
+    let killTimer: NodeJS.Timeout | null = null;
+    let forceTimer: NodeJS.Timeout | null = null;
+    if (timeoutMs > 0) {
+      killTimer = setTimeout(() => {
+        timedOut = true;
+        try { child.kill("SIGTERM"); } catch { /* ignore */ }
+        // Escalate to SIGKILL if it ignores SIGTERM.
+        forceTimer = setTimeout(() => {
+          try { child.kill("SIGKILL"); } catch { /* ignore */ }
+        }, 2_000);
+      }, timeoutMs);
+    }
+
+    child.stdout?.on("data", (buf: Buffer) => {
       if (stdout.length + buf.length > max) {
         truncated = true;
         return;
       }
       stdout += buf.toString("utf8");
     });
-    child.stderr.on("data", (buf: Buffer) => {
+    child.stderr?.on("data", (buf: Buffer) => {
       if (stderr.length < max) stderr += buf.toString("utf8");
     });
     child.on("error", (err) => {
-      resolve({ ok: false, exitCode: null, stderr, error: err.message });
+      settle({ ok: false, exitCode: null, stderr, error: err.message });
     });
     child.on("close", (code) => {
-      if (truncated) {
-        resolve({ ok: false, exitCode: code, stderr, error: "stdout exceeded buffer limit" });
+      if (timedOut) {
+        settle({
+          ok: false,
+          exitCode: code,
+          stderr,
+          error: `ccusage timeout after ${timeoutMs}ms`,
+        });
         return;
       }
-      if (code === 0) resolve({ ok: true, stdout });
-      else resolve({ ok: false, exitCode: code, stderr });
+      if (truncated) {
+        settle({ ok: false, exitCode: code, stderr, error: "stdout exceeded buffer limit" });
+        return;
+      }
+      if (code === 0) settle({ ok: true, stdout });
+      else settle({ ok: false, exitCode: code, stderr });
     });
   });
 }

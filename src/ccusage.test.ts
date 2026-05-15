@@ -113,4 +113,30 @@ describe("runCcusage", () => {
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error).toMatch(/ENOENT|not found|spawn/i);
   });
+
+  it("kills the child and returns an error when it exceeds timeoutMs", async () => {
+    const start = Date.now();
+    const result = await runCcusage({
+      command: "node",
+      args: ["-e", "setTimeout(() => {}, 60_000)"],
+      timeoutMs: 200,
+    });
+    const elapsed = Date.now() - start;
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toMatch(/timeout/i);
+    }
+    // Must not have waited for the full 60s child sleep.
+    expect(elapsed).toBeLessThan(5_000);
+  });
+
+  it("does not time out fast-completing children", async () => {
+    const result = await runCcusage({
+      command: "node",
+      args: ["-e", "process.stdout.write('ok')"],
+      timeoutMs: 5_000,
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.stdout).toBe("ok");
+  });
 });
