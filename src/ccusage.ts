@@ -94,7 +94,7 @@ export function runCcusage(opts: RunOptions): Promise<RunResult> {
 
     let child;
     try {
-      child = spawn(opts.command, opts.args, { stdio: ["ignore", "pipe", "pipe"] });
+      child = spawn(opts.command, opts.args, { stdio: ["ignore", "pipe", "pipe"], shell: true });
     } catch (e) {
       settle({ ok: false, exitCode: null, stderr: "", error: (e as Error).message });
       return;

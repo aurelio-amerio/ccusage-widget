@@ -1,14 +1,16 @@
 {
   "name": "ccusage-widget",
-  "displayName": "ccusage Widget",
+  "displayName": "CCusage Widget",
   "description": "Status-bar widget showing today's Claude Code spend via ccusage.",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "publisher": "aurelio-amerio",
   "repository": { "type": "git", "url": "https://github.com/aurelio-amerio/ccusage-widget" },
+  "icon": "logo.png",
   "license": "MIT",
   "engines": { "vscode": "^1.80.0", "node": ">=18" },
   "main": "./dist/extension.js",
   "activationEvents": ["onStartupFinished"],
+  "keywords": ["ccusage", "claude", "claude code", "usage", "spend"],
   "categories": ["Other"],
   "contributes": {
     "commands": [
