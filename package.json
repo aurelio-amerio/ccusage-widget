@@ -2,23 +2,29 @@
   "name": "ccusage-widget",
   "displayName": "ccusage Widget",
   "description": "Status-bar widget showing today's Claude Code spend via ccusage.",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "publisher": "aurelio-amerio",
   "repository": { "type": "git", "url": "https://github.com/aurelio-amerio/ccusage-widget" },
+  "icon": "logo.png",
   "license": "MIT",
   "engines": { "vscode": "^1.80.0", "node": ">=18" },
   "main": "./dist/extension.js",
   "activationEvents": ["onStartupFinished"],
+  "keywords": ["ccusage", "claude", "claude code", "usage", "spend"],
   "categories": ["Other"],
   "contributes": {
     "commands": [
       { "command": "ccusageWidget.refresh", "title": "ccusage Widget: Refresh now" },
       { "command": "ccusageWidget.showOutput", "title": "ccusage Widget: Show output log" },
-      { "command": "ccusageWidget.install", "title": "ccusage Widget: Install ccusage CLI" }
+      { "command": "ccusageWidget.installCcusage", "title": "ccusage Widget: Install / update ccusage globally" }
     ],
     "configuration": {
       "title": "ccusage Widget",
       "properties": {
+        "ccusageWidget.ccusageCommand": {
+          "type": "string", "default": "ccusage",
+          "description": "Command used to invoke ccusage. Must be installed globally: npm install -g ccusage"
+        },
         "ccusageWidget.refreshIntervalMinutes": {
           "type": "number", "default": 5, "minimum": 1,
           "description": "How often to poll ccusage for fresh data."

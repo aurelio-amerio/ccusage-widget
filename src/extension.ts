@@ -46,7 +46,7 @@ function reportErrors(cache: CacheState): void {
     )
     .then((choice) => {
       if (choice === "Install ccusage") {
-        void vscode.commands.executeCommand("ccusageWidget.install");
+        void vscode.commands.executeCommand("ccusageWidget.installCcusage");
       } else if (choice === "Show log") {
         getOutputChannel().show();
       }
@@ -73,7 +73,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
   poller = new Poller({
     intervalMs: cfg.refreshIntervalMinutes * 60_000,
-    loadOpts: { timezone: cfg.timezone ?? undefined },
+    loadOpts: { timezone: cfg.timezone ?? undefined, command: cfg.ccusageCommand },
   });
 
   poller.onUpdate(() => renderAll(cfg));
@@ -87,15 +87,16 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand("ccusageWidget.showOutput", () => {
       getOutputChannel().show();
     }),
-    vscode.commands.registerCommand("ccusageWidget.install", () => {
+    vscode.commands.registerCommand("ccusageWidget.installCcusage", () => {
       installCcusage();
     }),
     onConfigChange((newCfg) => {
       const intervalChanged = newCfg.refreshIntervalMinutes !== cfg.refreshIntervalMinutes;
-      const timezoneChanged = newCfg.timezone !== cfg.timezone;
+      const loadOptsChanged =
+        newCfg.timezone !== cfg.timezone || newCfg.ccusageCommand !== cfg.ccusageCommand;
       cfg = newCfg;
-      if (timezoneChanged && poller) {
-        poller.setLoadOpts({ timezone: cfg.timezone ?? undefined });
+      if (loadOptsChanged && poller) {
+        poller.setLoadOpts({ timezone: cfg.timezone ?? undefined, command: cfg.ccusageCommand });
       }
       if (intervalChanged && poller) {
         poller.setInterval(cfg.refreshIntervalMinutes * 60_000);

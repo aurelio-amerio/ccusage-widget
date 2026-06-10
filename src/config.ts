@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 
 export interface WidgetConfig {
+  ccusageCommand: string;
   refreshIntervalMinutes: number;
   timezone: string | null;
   showSessionBlock: boolean;
@@ -9,6 +10,7 @@ export interface WidgetConfig {
 export function readConfig(): WidgetConfig {
   const c = vscode.workspace.getConfiguration("ccusageWidget");
   return {
+    ccusageCommand: c.get<string>("ccusageCommand", "ccusage").trim() || "ccusage",
     refreshIntervalMinutes: Math.max(1, c.get<number>("refreshIntervalMinutes", 5)),
     timezone: c.get<string | null>("timezone", null),
     showSessionBlock: c.get<boolean>("showSessionBlock", true),
