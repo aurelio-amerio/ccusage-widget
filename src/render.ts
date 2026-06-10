@@ -18,9 +18,9 @@ export function formatTokens(n: number): string {
 }
 
 export function renderStatusBarText(cache: CacheState): string {
-  if (cache.today.data) return `$(clippy) ${formatCost(cache.today.data.totalCost)}`;
-  if (cache.today.error && !cache.today.data) return `$(clippy) $?`;
-  return `$(clippy) Loading…`;
+  if (cache.today.data) return `$(chevron-right) ${formatCost(cache.today.data.totalCost)}`;
+  if (cache.today.error && !cache.today.data) return `$(chevron-right) $?`;
+  return `$(chevron-right) Loading…`;
 }
 
 function shortModelName(name: string): string {

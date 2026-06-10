@@ -49,18 +49,18 @@ describe("formatTokens", () => {
 });
 
 describe("renderStatusBarText", () => {
-  it("shows today's cost and a search icon when data is present", () => {
-    expect(renderStatusBarText(withData())).toBe("$15.77 $(clippy)");
+  it("shows a chevron icon then today's cost when data is present", () => {
+    expect(renderStatusBarText(withData())).toBe("$(chevron-right) $15.77");
   });
 
   it("shows Loading when there is no data and no error", () => {
-    expect(renderStatusBarText(emptyCache())).toBe("Loading… $(clippy)");
+    expect(renderStatusBarText(emptyCache())).toBe("$(chevron-right) Loading…");
   });
 
   it("shows a question mark when there is an error and no prior data", () => {
     const c = emptyCache();
     c.today = { data: null, error: "boom", fetchedAt: new Date() };
-    expect(renderStatusBarText(c)).toBe("$? $(clippy)");
+    expect(renderStatusBarText(c)).toBe("$(chevron-right) $?");
   });
 });
 

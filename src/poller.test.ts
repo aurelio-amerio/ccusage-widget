@@ -56,11 +56,28 @@ describe("Poller", () => {
     expect(p.getCache().today.data?.totalCost).toBe(1.0);
 
     mockFetchToday.mockRejectedValueOnce(new Error("boom"));
+    await vi.advanceTimersByTimeAsync(20_000); // clear the refresh throttle
     await p.refresh();
 
     const c = p.getCache();
     expect(c.today.data?.totalCost).toBe(1.0);
     expect(c.today.error).toContain("boom");
+  });
+
+  it("throttles refreshes that arrive within the minimum interval", async () => {
+    const p = new Poller({ intervalMs: 60_000, loadOpts: {}, minRefreshMs: 20_000 });
+
+    await p.refresh();
+    expect(mockFetchToday).toHaveBeenCalledTimes(1);
+
+    // Too soon — skipped, no extra fetch.
+    await p.refresh();
+    expect(mockFetchToday).toHaveBeenCalledTimes(1);
+
+    // Past the window — allowed again.
+    await vi.advanceTimersByTimeAsync(20_000);
+    await p.refresh();
+    expect(mockFetchToday).toHaveBeenCalledTimes(2);
   });
 
   it("auto-refreshes on the configured interval", async () => {

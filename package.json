@@ -2,7 +2,7 @@
   "name": "ccusage-widget",
   "displayName": "ccusage Widget",
   "description": "Status-bar widget showing today's Claude Code spend via ccusage.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "aurelio-amerio",
   "repository": { "type": "git", "url": "https://github.com/aurelio-amerio/ccusage-widget" },
   "license": "MIT",
@@ -13,7 +13,8 @@
   "contributes": {
     "commands": [
       { "command": "ccusageWidget.refresh", "title": "ccusage Widget: Refresh now" },
-      { "command": "ccusageWidget.showOutput", "title": "ccusage Widget: Show output log" }
+      { "command": "ccusageWidget.showOutput", "title": "ccusage Widget: Show output log" },
+      { "command": "ccusageWidget.install", "title": "ccusage Widget: Install ccusage CLI" }
     ],
     "configuration": {
       "title": "ccusage Widget",
@@ -40,9 +41,6 @@
     "test:watch": "vitest",
     "vscode:prepublish": "node esbuild.mjs --production",
     "package": "vsce package"
-  },
-  "dependencies": {
-    "ccusage": "^18.0.11"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",

@@ -1,11 +1,17 @@
 import { fetchToday, fetchMonth, fetchActiveBlock } from "./ccusage";
 import type { LoadOpts } from "./ccusage";
 import { emptyCache } from "./cache";
-import type { CacheState } from "./cache";
+import type { CacheState, SectionState } from "./cache";
+
+/** Floor between fetches so we never hammer the ccusage CLI (which spawns a
+ * subprocess per section). Manual and automatic refreshes both respect it. */
+export const DEFAULT_MIN_REFRESH_MS = 20_000;
 
 export interface PollerOptions {
   intervalMs: number;
   loadOpts: LoadOpts;
+  /** Minimum gap between fetch sets; defaults to {@link DEFAULT_MIN_REFRESH_MS}. */
+  minRefreshMs?: number;
 }
 
 type Listener = (cache: CacheState) => void;
@@ -15,10 +21,13 @@ export class Poller {
   private listeners: Listener[] = [];
   private inflight: Promise<void> | null = null;
   private timer: ReturnType<typeof setInterval> | null = null;
+  private lastRefreshAt = 0;
+  private readonly minRefreshMs: number;
   private opts: PollerOptions;
 
   constructor(opts: PollerOptions) {
     this.opts = opts;
+    this.minRefreshMs = opts.minRefreshMs ?? DEFAULT_MIN_REFRESH_MS;
   }
 
   getCache(): CacheState { return this.cache; }
@@ -49,6 +58,12 @@ export class Poller {
 
   refresh(): Promise<void> {
     if (this.inflight) return this.inflight;
+    // Throttle: skip if we fetched too recently, to avoid spawning ccusage
+    // back-to-back (e.g. rapid manual refresh clicks).
+    if (Date.now() - this.lastRefreshAt < this.minRefreshMs) {
+      return Promise.resolve();
+    }
+    this.lastRefreshAt = Date.now();
     this.inflight = this.doRefresh().finally(() => { this.inflight = null; });
     return this.inflight;
   }
@@ -73,12 +88,12 @@ export class Poller {
 }
 
 function merge<T>(
-  prev: CacheState["today"],
+  prev: SectionState<T>,
   settled: PromiseSettledResult<T | null>,
   now: Date,
-): { data: T | null; error: string | null; fetchedAt: Date } {
+): SectionState<T> {
   if (settled.status === "rejected") {
-    return { data: prev.data as T | null, error: String(settled.reason), fetchedAt: now };
+    return { data: prev.data, error: String(settled.reason), fetchedAt: now };
   }
-  return { data: settled.value as T | null, error: null, fetchedAt: now };
+  return { data: settled.value, error: null, fetchedAt: now };
 }
